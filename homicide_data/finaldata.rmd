@@ -1,0 +1,125 @@
+---
+title: "Editing Homicide data with Temperature Data"
+author: "Nusrat Nawshin"
+# date: "today"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r init, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis'/'markup',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+library(ezids)
+# knitr::opts_chunk$set(warning = F, results = "markup", message = F)
+knitr::opts_chunk$set(warning = F, results = "show", message = F)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+### Main Homicide Dataframe
+
+#### reading the homicide original data
+
+```{r}
+df <- data.frame(read.csv(unz('database.zip','database.csv'), header = T))
+summary(df)
+```
+
+#### Lets observe the Month column unique values
+
+```{r}
+unique(df[c("Month")])
+```
+#### Creating a new column named Date and mapping with Month data as (01, 02, 03 .... 11,12)
+
+```{r, results='hide'}
+require(plyr)
+df$Date <- mapvalues(df$Month, 
+          from=c("January","February","March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 
+          to=c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"))
+
+summary(df)
+```
+#### Now lets merge year column with date and create Date column with yyyymm format to match the temperature dataframe
+
+```{r, results='hide'}
+df$Date <- paste(df$Year, df$Date, sep="")
+summary(df)
+```
+
+#### Now the Date column is in yyyymm format
+
+#### Now before merging the states lets look into the unique states in the main dataframe
+```{r}
+unique(df[c("State")])
+```
+#### There are two issues here. District of columbia is not a state so we are merging that to Maryland and the Rhode Island spelling is wrong. Renaming it from Rhodes Island to Rhode Island
+
+```{r}
+df$State_temp <- df$State
+df[df$State_temp == 'District of Columbia',]$State_temp <- "Maryland"
+df[df$State_temp == 'Rhodes Island',]$State_temp <- "Rhode Island"
+
+unique(df[c("State_temp")])
+```
+
+#### Lets convert Date column back to numeric
+```{r, results='hide'}
+df$Date <- as.numeric(df$Date)
+str(df)
+```
+
+### Joining Homicide data and Temperature data
+
+#### Reading the temperature data
+
+```{r}
+temp_df <- data.frame(read.csv("../temperature_data/us_state_final_temp_data.csv", header = TRUE))
+summary(temp_df)
+```
+
+#### Homicide data:
+
+```{r}
+summary(df)
+```
+
+#### Merging homicide data with temperature
+
+```{r}
+main_df = merge(df, temp_df, by.x=c("State_temp", "Date"), by.y=c("Location", "Date"),all.x = TRUE)
+```
+
+#### The colnames are:
+
+```{r}
+colnames(main_df)
+```
+#### Removing Date, State_temp and x as they ar no longer needed
+
+### Final Homicide Data:
+
+```{r}
+main_df$State <- main_df$State_temp 
+main_df <- subset(main_df, select = -c(Date, State_temp, X))
+str(main_df)
+```
+
+#### Now out dataset is ready
+#### Lets store it in a CSV file
+
+```{r}
+write.csv(main_df, "homicide_data.csv")
+```
+
+
