@@ -1,0 +1,171 @@
+---
+title: "Joining all the Temperature Data part I"
+author: "Nusrat Nawshin"
+# date: "today"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r init, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis'/'markup',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+library(ezids)
+# knitr::opts_chunk$set(warning = F, results = "markup", message = F)
+knitr::opts_chunk$set(warning = F, results = "show", message = F)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+
+### Main Dataframe
+
+#### reading the temperature data
+
+```{r}
+df <- data.frame(read.csv("alldata1.csv", header = TRUE, skip =3))
+summary(df)
+```
+
+#### only taking necessary columns: 'Location','Date','Value' -> maindf
+
+```{r}
+maindf <- subset(df, select = c(Location, Date, Value))
+
+summary(maindf)
+```
+
+#### Renaming Value column to temp. It seems more meaningful to me.
+
+```{r}
+colnames(maindf)[which(names(maindf) == "Value")] <- "temp"
+```
+
+#### Lets look at the dataset. 
+```{r}
+str(maindf)
+```
+```{r}
+unique(maindf[c("Location")])
+```
+#### The temperature datset dosn't have the Hawaii & Alaska states data. We have to explicitly add those states from other datasets now.
+
+### Hawaii Data
+
+#### Now I'm adding Hawaii datas from hawaii.xlsx
+
+```{r}
+# Loading
+library("readxl")
+# xlsx files
+hawaii_df <- read_excel("hawaii.xlsx", skip =1)
+summary(hawaii_df)
+```
+#### We dont need the Anual column. Lets remove it
+```{r}
+hawaii_df <- subset(hawaii_df, select = -c(Annual))
+
+summary(hawaii_df)
+```
+
+#### Now lets melt the data frame
+
+```{r}
+library(reshape2)
+hawaii_temp_df <- melt(hawaii_df,
+                 id.vars = "Year",
+                 variable.name = "Month",
+                 value.name = "temp")
+
+```
+
+
+```{r}
+summary(hawaii_temp_df)
+```
+#### Addind a new column named Location with Value "Hawaii" 
+```{r}
+hawaii_temp_df$Location <- "Hawaii"
+str(hawaii_temp_df)
+```
+#### I have to convert the month column to integer so that it represents the month number
+```{r}
+hawaii_temp_df$Month <- as.numeric(hawaii_temp_df$Month)
+```
+
+#### Lets make each column character type
+```{r}
+hawaii_temp_df <- data.frame(lapply(hawaii_temp_df, as.character), stringsAsFactors=FALSE)
+```
+
+#### We have to make the month values two digits(01, 02, 03.... 11, 12) to match the other dataset format
+
+```{r}
+library(stringr)
+hawaii_temp_df$Month <- str_pad(hawaii_temp_df$Month, 2, pad = "0")
+str(hawaii_temp_df)
+```
+
+#### Let's join Month and year column together
+```{r}
+hawaii_temp_df$Date <- paste(hawaii_temp_df$Year, hawaii_temp_df$Month, sep="")
+str(hawaii_temp_df)
+```
+#### As our desired Date structure is made. Lets remove Year and Month columns
+
+```{r}
+hawaii_temp_df <- subset(hawaii_temp_df, select = c(Location, Date, temp))
+str(hawaii_temp_df)
+```
+
+#### Our Hawaii dataset has created perfectly. Now have to join Hawaii with Main data and store it in a new dataframe named us_state_temp_data
+
+```{r}
+us_state_temp_data <- rbind(maindf, hawaii_temp_df)
+str(us_state_temp_data)
+unique(us_state_temp_data[c("Location")])
+```
+#### Perfect. We have our temperature dataset with Hawaii datas. Now Lets add Alaska Data
+
+### Alaska Data
+```{r}
+alaska_df <- data.frame(read.csv("alaskadata.csv", header = TRUE, skip =3))
+summary(df)
+str(alaska_df)
+```
+#### Adding a new column Location with 'Alaska' as values and rename the column 'Value' to 'temp' to match with our main temperature dataset
+```{r}
+alaska_df$Location <- "Alaska"
+colnames(alaska_df)[which(names(alaska_df) == "Value")] <- "temp"
+str(alaska_df)
+```
+
+#### Now lets join Alaska data to our all us state data
+
+```{r}
+us_state_temp_data_final <- rbind(us_state_temp_data, alaska_df)
+str(us_state_temp_data_final)
+unique(us_state_temp_data_final[c("Location")])
+```
+
+#### Great!! Now we have our all states temperature data
+
+#### Lets store it in a CSV file
+
+```{r}
+write.csv(us_state_temp_data_final, "us_state_final_temp_data.csv")
+```
+
+
+
+
+
