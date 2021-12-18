@@ -22,17 +22,276 @@ output:
 # include=T, eval=T, echo=T, results='hide'/'asis'/'markup',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
 # library(ezids)
 # knitr::opts_chunk$set(warning = F, results = "markup", message = F)
+library(tidyverse)  
+library(corrplot)
 knitr::opts_chunk$set(warning = F, results = "show", message = F)
 options(scientific=T, digits = 3) 
-# options(scipen=9, digits = 3) 
+options(scipen=9, digits = 3) 
 # ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
 # use scipen=999 to prevent scientific notation at all times
 
 ```
 
-#### Importing data
+
+# Background
+## Overview
+
+Homicide is defined as the act of a human being killing another human. I wanted to study the topic of homicides in the United States for several reasons. While homicides are obviously tragic and unfortunate, the reality is that we are naturally curious about the circumstances surrounding a homicide. The data that I need in order to thoroughly analyze homicide cases in the United States is available thanks to the Murder Accountability Project, a non-profit dedicated to compiling and tracking unsolved homicides nationwide. Founded by investigative journalist and former White House correspondent Thomas Hargrove, the Murder Accountability Project keeps extensive records on homicides and the relevant information surrounding them by gathering information from the FBI, the Department of Justice, and other agencies. The result of their work is a massive set of data that lists relevant information for over 600,000 homicide cases that occurred between 1980 and 2014. The data set includes information on both the victim and perpetrator (sex, age, race, ethnicity) as well as the department that handled the case. We have access to the relationship between the victim and perpetrator, the weapon used in the homicide, and whether that homicide was solved. In addition to the homicide data, we also have access to monthly weather temperature data courtesy of the National Oceanic and Atmospheric Administration that we can use to look at the relationship, if any, between weather and homicide cases.
+
+### Prior Researches
+
+I found some prior researches on this data set. They were mostly researching on the demographic information of the victim and perpetrator. There were some researches on demographic information and the weapon type or type of homicide. Also, some researches based on yearly homicide cases, predicting demographic of victim/perpetrator.
+
+
+## Dataset Description
+
+| Serial No. | Column Name | data type | description |
+|---|---|---|---|
+| 1 | Record.ID | Integer | Unique ID of Record |   
+| 2 | Agency.Code | Integer | Code of the agency handling the case |
+| 3 | Agency.Name | Integer | Name of the agency handling the case |           
+| 4 | Agency.Type | Character | Type of the agency handling the case |           
+| 5 | City | Character |City name of the homicide incident |
+| 6 | State | Character | State of the homicide incident |      
+| 7 | Year | Integer | Year of the homicide incident |
+| 8 | Month | Character | Month of the homicide incident |           
+| 9 | Incident | Integer | Code of the Incident type |      
+| 10 | Crime.Type | Character | Type of crime |
+| 11 | Crime.Solved | Character | Crime solved or not |
+| 12 | Victim.Sex | Character | Sex of Victim |
+| 13 | Victim.Age | Integer | Age of Victim |        
+| 14 | Victim.Race | Character | Race of victim |         
+| 15 | Victim.Ethnicity | Character | Victim Ethnic group |
+| 16 | Perpetrator.Sex | Character | Sex of perpetrator |
+| 17 | Perpetrator.Age | Integer | Age of perpetrator |
+| 18 | Perpetrator.Race | Character | Perpetrator racial group |
+| 19 | Perpetrator.Ethnicity | Character | Perpetrator Ethnic group |
+| 20 | Relationship | Character | Relationship between victim and perpetrator |
+| 21 | Weapon | Character | Type of weapon used |
+| 22 | Victim.Count | Integer | count of victim |
+| 23 | Perpetrator.Count | Integer | Count of perpetrator |
+| 24 | Record.Source | Character | Source of the homicide report |
+| 25 | temp | Numeric | Monthly average temperature |
+
+
+### Limitation of the dataset
+ 
+In the data set, there isn't any specific record of the date of the incident. It would have been better if there was exact incident date information. In general, my goal is to find out if there could be any relationship between homicides and weather temperature. To achieve that I needed the temperature data of the homicide cases. I found the monthly average data from the NOAA website. I found three data files over there, Hawaii monthly average temperature data, Alaska monthly average temperature data and another with all other 48 states monthly average temperature data. Joining these three separate data sets, I made a data file with all the 50 states monthly average data and finally joined the monthly average column as 'temp' to our main homicide data set. If I had the information of the exact homicide incident date, I could use that day's average temperature instead of the monthly average temperature. Then the study would have been more accurately compared.
+
+### Importing data
 
 ```{r}
-df <- data.frame(read.csv(unz('~/homicide_data/homicide_data.zip','homicide_data.csv'), header = T))
-summary(df)
+df <- data.frame(read.csv(unz('homicide_data/homicide_data.zip','homicide_data.csv'), header = T))
+# head(df, 5)
+str(df)
 ```
+
+This dataset has `r ncol(df)` variables and `r nrow(df)` number of observations.
+
+
+## Homicides on each states
+
+Now I would like to find out if this data set can show some connection between the number of homicides and the weather temperature. But the American state is in three climatic zones therefore it cannot be associated with a single distinctive landscape. There are the great plains affected by desert climate, California luxuriates in soft and warm. Whereas there are Mediterranean weather conditions and people of snow-covered Alaska can admire the aurora. Initially, I wanted to observe this relationship by season type. But the temperature is so versatile in all over the USA that it cannot be generalized that way. That’s why I am sub grouping the temperature by 4 categories for better observations. They are: -
+
+**Freezing**: Temperature < 31F
+
+**Cold**: Temperature between 31F and 68F
+
+**Warm**: Temperature between 68F and 82F
+
+**Hot**: Temperature > 82F
+
+
+```{r}
+#### Subsetting temperature by value 
+df_freezing <- subset(df, temp <= 31 )
+df_cold <- subset(df, temp > 31 & temp <= 68)
+df_warm <- subset(df, temp > 68 & temp <= 82 )
+df_hot <- subset(df, temp > 82)
+# Categorizing the subsets to Freezing, Cold, Warm, Hot
+df_freezing$Weather.Type <- "Freezing"
+df_cold$Weather.Type <- "Cold"
+df_warm$Weather.Type <- "Warm"
+df_hot$Weather.Type <- "Hot"
+# joining everything to one dataframe
+total_df <- rbind(df_freezing, df_cold)
+total_df <- rbind(total_df, df_warm)
+total_df <- rbind(total_df, df_hot)
+total_df <- total_df[order(total_df$Record.ID),]
+#str(total_df)
+```
+
+
+
+
+```{r}
+analysis_df <- subset(total_df, select = c(City, State, Year, Month, Incident, Crime.Type, Crime.Solved, Relationship, Weapon, temp, Weather.Type))
+# str(analysis_df)
+
+analysis_df$Crime.Solved  = factor(analysis_df$Crime.Solved )
+analysis_df$Weather.Type = factor(analysis_df$Weather.Type )
+```
+After removing the columns that I might not need for this analysis, final data frame summary is:
+```{r}
+summary(analysis_df)
+```
+
+At first, let's check the count of incidents on each weather types.
+
+```{r}
+weatherdata <- table(analysis_df$Weather.Type)
+weatherdf <- data.frame(weatherdata)
+weatherdf$Freq <- factor(weatherdf$Freq)
+```
+
+```{r}
+
+ggplot(weatherdf, aes(y=as.numeric(Freq), x=factor(Var1, level = c("Freezing","Cold","Warm","Hot")), fill=factor(Var1))) +
+  geom_bar(stat='identity') +
+  scale_fill_manual(breaks = c("Freezing", "Cold", "Warm", "Hot"), 
+                       values=c("cyan", "blue", "orange", "red"))+
+  theme(axis.text.x = element_text(angle = rel(1.5), hjust = 1))+
+  labs(title="Total Homicide Records vs Weather Type",
+       x="Weather Type",
+       y="Number of Homicides (per 100k)",
+       fill="Weather Type")
+```
+
+Overall, mostly the incidents had happened during cold and warm weather. 
+
+Moving on to explore the states and the count of homicides.
+
+
+```{r}
+table1 <- table(analysis_df$State)
+names(table1) <- c("State", "Total.Incidents")
+```
+
+```{r}
+library(ggplot2)
+state_data <- as.data.frame(table(analysis_df$Weather.Type, analysis_df$State))
+names(state_data) <- c("Weather.Type", "State", "Freq")
+
+ggplot(state_data, aes(reorder(State, -Freq), Freq, fill = Weather.Type)) + 
+  geom_bar(stat="identity") +
+  scale_y_sqrt() +
+  scale_fill_manual(breaks = c("Freezing", "Cold", "Warm", "Hot"), 
+                       values=c("#4effcd", "#1b5ae4", "#ff6e00", "#DE2139")) +
+  theme(axis.text.x = element_text(angle = rel(1.5), hjust = 1),
+        legend.justification=c(1,0),
+        legend.position=c(0.95,0.5),
+        legend.text = element_text(size = rel(1.5), face = "bold"))+
+  coord_flip()+
+  labs(title="Total Homicide Records All Over the Sates",
+       x="Sate",
+       y="Crimes count",
+       fill="Weather Type")
+#ggsave("myplot.png")
+```
+
+
+
+Here, California is having the highest homicide incidents and majority of them are during cold weather. The second highest numbers of incidents happened in Texas and mostly during the cold weather and continued to happen even in the hot temperature with prominent significance. 
+
+
+
+Top 5 states in most homicide cases are:
+
+1. California
+
+2. Texas
+
+3. New York
+
+4. Florida
+
+5. Michigan
+
+
+Top 5 states in least homicide cases are:
+
+1. North Dakota
+
+2. Vermont
+
+3. South Dakota
+
+4. Montana
+
+5. Wyoming
+
+## Homicides over the years
+
+Now let's observe the homicides by years and weather types.
+
+```{r}
+ggplot(analysis_df, aes(x=as.factor(Year), fill=Weather.Type )) + 
+  geom_bar( ) +
+  scale_fill_hue(c = 30) +
+  coord_flip()+
+  scale_fill_manual(breaks = c("Freezing", "Cold", "Warm", "Hot"), 
+                       values=c("#21dec6", "#1EA2CE", "#EB9172", "#DE2139"))+
+  labs(title="Total Homicide Records Over the Years",
+       x="Crimes count",
+       y="Year",
+       fill="Weather Type")
+
+```
+
+Here also we can see most cases were during the cold weather over the years between 1980 and 2014. Along with that, even in the extreme temperatures the homicides continued to happen. Overall, it seems in warm temperature there are least cases of homicides.
+
+It can be also observed that, there’s a significant drop of cases after 1993. After that it started to decrease gradually till the end of the century. The homicide cases in the 21st century were comparatively lower than the 20th. Maybe it could be the technological advancement that 21st century, people were more focused on the changes than committing homicides.
+
+
+
+Now let's find out if the years of incidents have any correlation with case solving or not.
+
+
+
+### $chi$-squared test
+
+To find out the correlation between count of homicides and weather type, we are doing a $chi$-squared test on weather type and count of homicides with a null hypothesis that Weather Type and number of homicides are independent.
+
+```{r}
+
+monthlycrimedata <- table( analysis_df$State,analysis_df$Year, analysis_df$Month, analysis_df$Weather.Type)
+monthlycrimedf <- as.data.frame(monthlycrimedata)
+monthlycrimedf$Freq <- factor(monthlycrimedf$Freq)
+#str(monthlycrimedf)
+```
+
+```{r, results=T}
+contable=table(monthlycrimedf$Var4, monthlycrimedf$Freq)
+
+chitest = chisq.test(contable)
+chitest
+```
+
+Given this p-value of `r chitest$p.value` is less than the alpha of 0.05, we reject the null hypothesis that Weather Type and number of homicides are independent. We conclude that there is an evidence that the two variables are dependent (i.e., that there is an association between the two variables).
+
+Now, we are going to check if there is any relationship between weather type and number of homicides by generating a correlation matrix.
+
+### Correlation Matrix 
+
+**Correlation between incident, year and weather type:**
+
+```{r}
+numericdata <- data.frame(monthlycrimedf)
+numericdata$Var1 <- cbind(as.numeric(numericdata$Var1))
+numericdata$Var2 <- as.numeric(numericdata$Var2)
+numericdata$Var3 <- as.numeric(numericdata$Var3)
+numericdata$Var4 <- as.numeric(numericdata$Var4)
+numericdata$Freq <- as.numeric(numericdata$Freq)
+colnames(numericdata)[0:5] = c("State","Year","Month","WeatherType","Homicides")
+cormatrix = cor(numericdata)
+corrplot.mixed(cormatrix,lower.col = "#e25978", number.cex = .7)
+```
+
+It can be observed that, the number of _Homicides_ and _Weather type_ has a very small negative relation. Which means as the temperature increases, number of homicide incidents _decreases_ by _14%_.
+
+
+# Conclusion
+
+Overall, there isn’t that much of relationship between number of homicides and the weather type that I have assumed from the beginning. As USA has a very diverse climate, our data set couldn’t give that many insights of it. Also, as I had to use monthly average data of the state on analyze, it cannot precisely give the incident day temperature.
+
+
