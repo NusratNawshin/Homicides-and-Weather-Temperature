@@ -36,7 +36,7 @@ options(scipen=9, digits = 3)
 # Background
 ## Overview
 
-Homicide is defined as the act of a human being killing another human. I wanted to study the topic of homicides in the United States for several reasons. While homicides are obviously tragic and unfortunate, the reality is that we are naturally curious about the circumstances surrounding a homicide. The data that I need in order to thoroughly analyze homicide cases in the United States is available thanks to the Murder Accountability Project, a non-profit dedicated to compiling and tracking unsolved homicides nationwide. Founded by investigative journalist and former White House correspondent Thomas Hargrove, the Murder Accountability Project keeps extensive records on homicides and the relevant information surrounding them by gathering information from the FBI, the Department of Justice, and other agencies. The result of their work is a massive set of data that lists relevant information for over 600,000 homicide cases that occurred between 1980 and 2014. The data set includes information on both the victim and perpetrator (sex, age, race, ethnicity) as well as the department that handled the case. We have access to the relationship between the victim and perpetrator, the weapon used in the homicide, and whether that homicide was solved. In addition to the homicide data, we also have access to monthly weather temperature data courtesy of the National Oceanic and Atmospheric Administration that we can use to look at the relationship, if any, between weather and homicide cases.
+Homicide is defined as the act of a human being killing another human. I wanted to study the topic of homicides in the United States for several reasons. While homicides are obviously tragic and unfortunate, the reality is that we are naturally curious about the circumstances surrounding a homicide. The data that I need in order to thoroughly analyze homicide cases in the United States is available thanks to the Murder Accountability Project, a non-profit dedicated to compiling and tracking unsolved homicides nationwide. Founded by investigative journalist and former White House correspondent Thomas Hargrove, the Murder Accountability Project keeps extensive records on homicides and the relevant information surrounding them by gathering information from the FBI, the Department of Justice, and other agencies. The result of their work is a massive set of data that lists relevant information for over 600,000 homicide cases that occurred between 1980 and 2014. The data set includes information on both the victim and perpetrator (sex, age, race, ethnicity) as well as the department that handled the case. It also includes the relationship between the victim and perpetrator, the weapon used in the homicide, and whether that homicide was solved. In addition to the homicide data, I also have access to monthly weather temperature data courtesy of the National Oceanic and Atmospheric Administration that I can use to look at the relationship, if any, between weather and homicide cases.
 
 ### Prior Researches
 
@@ -77,6 +77,14 @@ I found some prior researches on this data set. They were mostly researching on 
 ### Limitation of the dataset
  
 In the data set, there isn't any specific record of the date of the incident. It would have been better if there was exact incident date information. In general, my goal is to find out if there could be any relationship between homicides and weather temperature. To achieve that I needed the temperature data of the homicide cases. I found the monthly average data from the NOAA website. I found three data files over there, Hawaii monthly average temperature data, Alaska monthly average temperature data and another with all other 48 states monthly average temperature data. Joining these three separate data sets, I made a data file with all the 50 states monthly average data and finally joined the monthly average column as 'temp' to our main homicide data set. If I had the information of the exact homicide incident date, I could use that day's average temperature instead of the monthly average temperature. Then the study would have been more accurately compared.
+
+The homicide data set comes from Kaggle and contains roughly 638,000 observations.
+[Link](https://www.kaggle.com/murderaccountability/homicide-reports)
+
+Additionally, the monthly weather temperature data was collected from NOAA.GOV and contains roughly 75000 records.
+[Link](https://www.ncdc.noaa.gov/cag/statewide/mapping) 
+
+After joining the two datasets and I made the final dataset as "homicide_data.csv"
 
 ### Importing data
 
